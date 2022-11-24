@@ -71,8 +71,15 @@ async function run(){
 
        app.get("/allProducts/advertise", async (req, res) => {
          const filter = {advertised:true}
-         const result = await productsCollection.find(filter).toArray()
-         res.send(result)
+           const page = parseInt(req.query.page);
+           const limit = parseInt(req.query.limit);
+         const result = await productsCollection
+           .find(filter)
+           .skip(page * limit)
+           .limit(limit)
+           .toArray();
+         const count = result.length
+         res.send({ count, result });
 
        });
 
