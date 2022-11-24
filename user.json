@@ -1,0 +1,37 @@
+[
+   {
+      "sellerName": "Salma",
+      "sellerEmail": "salma@gmail.com",
+      "sellerImg":"https://i.ibb.co/Q6Y007X/1.jpg",
+      "role":"seller",
+      "isVarified": true
+   },
+   {
+     "sellerName": "Asma",
+     "sellerEmail": "asma@gmail.com",
+     "sellerImg": "https://i.ibb.co/2s2Y49D/2.jpg",
+     "role": "seller",
+     "isVarified": true
+   },
+   {
+     "sellerName": "Mili",
+     "sellerEmail": "mili@gmail.com",
+     "sellerImg": "https://i.ibb.co/XjTQfwD/5.jpg",
+     "role": "seller",
+     "isVarified": true
+   },
+   {
+     "sellerName": "Lily",
+     "sellerEmail": "lily@gmail.com",
+     "sellerImg": "https://i.ibb.co/dg7xpnC/3.jpg",
+     "role": "seller",
+     "isVarified": true
+   },
+   {
+     "sellerName": "Shila",
+     "sellerEmail": "Shila@gmail.com",
+     "sellerImg": "https://i.ibb.co/C1KHNtM/4.jpg",
+     "role": "seller",
+     "isVarified": true
+   }
+]
