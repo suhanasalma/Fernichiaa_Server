@@ -43,6 +43,30 @@ async function run(){
 
       })
 
+      //time added
+
+      // app.get('/allProducts',async(req,res)=>{
+      //    const filter ={}
+      //    const option = {upsert:true}
+      //    const updateDoc = {
+      //       $set:{
+      //          postedTime: new Date()
+      //       }
+      //    }
+      //    const result = await productsCollection.updateMany(filter,updateDoc,option)
+      //    res.send(result)
+      // })
+
+
+      app.get('/allProducts',async(req,res)=>{
+         const filter ={}
+         const page = parseInt(req.query.page);
+         const limit  = parseInt(req.query.limit);
+         const result = await productsCollection.find(filter).skip(page*limit).limit(limit).toArray()
+         const count = await productsCollection.estimatedDocumentCount()
+         res.send({count,result})
+      })
+
 
 
    }
