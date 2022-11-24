@@ -16,13 +16,15 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
-console.log(uri)
 
 async function run(){
    try{
 
       const categoryCollection = client.db("FurnitureShop").collection("FurnitureCategory");
       const productsCollection = client.db("FurnitureShop").collection("AllProducts");
+      const usersCollection = client
+        .db("FurnitureShop")
+        .collection("Users");
 
       app.get('/categories',async(req,res)=>{
          const query = {}
@@ -82,6 +84,22 @@ async function run(){
          res.send({ count, result });
 
        });
+
+       app.post('/users',async(req,res)=>{
+         const user = req.body
+         console.log(user)
+         const result = await usersCollection.insertOne(user);
+         res.send(result)
+
+       })
+       app.get('/users',async(req,res)=>{
+         const role = req.query.role
+         const query = {role:role};
+         const result  = await usersCollection.find(query).toArray()
+         // console.log(query)
+         res.send(result)
+
+       })
 
 
 

@@ -1,37 +1,52 @@
 [
    {
-      "sellerName": "Salma",
-      "sellerEmail": "salma@gmail.com",
-      "sellerImg":"https://i.ibb.co/Q6Y007X/1.jpg",
+      "name": "Salma",
+      "email": "salma@gmail.com",
+      "img":"https://i.ibb.co/Q6Y007X/1.jpg",
       "role":"seller",
-      "isVarified": true
+      "isVarified": true,
+      "phone":"0156322222",
+      "address":"Dhaka",
+      "age":25
    },
    {
-     "sellerName": "Asma",
-     "sellerEmail": "asma@gmail.com",
-     "sellerImg": "https://i.ibb.co/2s2Y49D/2.jpg",
+     "name": "Asma",
+     "email": "asma@gmail.com",
+     "img": "https://i.ibb.co/2s2Y49D/2.jpg",
      "role": "seller",
-     "isVarified": true
+     "isVarified": true,
+     "phone": "0156322222",
+     "address": "Dhaka",
+     "age": 25
    },
    {
-     "sellerName": "Mili",
-     "sellerEmail": "mili@gmail.com",
-     "sellerImg": "https://i.ibb.co/XjTQfwD/5.jpg",
+     "name": "Mili",
+     "email": "mili@gmail.com",
+     "img": "https://i.ibb.co/XjTQfwD/5.jpg",
      "role": "seller",
-     "isVarified": true
+     "isVarified": true,
+     "phone": "0156322222",
+     "address": "Dhaka",
+     "age": 25
    },
    {
-     "sellerName": "Lily",
-     "sellerEmail": "lily@gmail.com",
-     "sellerImg": "https://i.ibb.co/dg7xpnC/3.jpg",
+     "name": "Lily",
+     "email": "lily@gmail.com",
+     "img": "https://i.ibb.co/dg7xpnC/3.jpg",
      "role": "seller",
-     "isVarified": true
+     "isVarified": true,
+     "phone": "0156322222",
+     "address": "Dhaka",
+     "age": 25
    },
    {
-     "sellerName": "Shila",
-     "sellerEmail": "Shila@gmail.com",
-     "sellerImg": "https://i.ibb.co/C1KHNtM/4.jpg",
+     "name": "Shila",
+     "email": "Shila@gmail.com",
+     "img": "https://i.ibb.co/C1KHNtM/4.jpg",
      "role": "seller",
-     "isVarified": true
+     "isVarified": true,
+     "phone": "0156322222",
+     "address": "Dhaka",
+     "age": 25
    }
 ]
