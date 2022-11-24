@@ -16,6 +16,8 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+console.log(uri)
+
 async function run(){
    try{
 
@@ -66,6 +68,13 @@ async function run(){
          const count = await productsCollection.estimatedDocumentCount()
          res.send({count,result})
       })
+
+       app.get("/allProducts/advertise", async (req, res) => {
+         const filter = {advertised:true}
+         const result = await productsCollection.find(filter).toArray()
+         res.send(result)
+
+       });
 
 
 
