@@ -70,6 +70,10 @@ async function run(){
 
      app.get("/allProducts", async (req, res) => {
        const filter = {};
+
+      //  if (req.query.email) {
+      //   filter = { sellerEmail: email };
+      //  }
        const page = parseInt(req.query.page);
        const limit = parseInt(req.query.limit);
        const result = await productsCollection
@@ -80,6 +84,37 @@ async function run(){
        const count = await productsCollection.estimatedDocumentCount();
        res.send({ count, result });
      });
+
+     app.put("/allProducts/:id", async (req, res) => {
+      const id = req.params.id
+      const filter = {_id:ObjectId(id)}
+      const options = {upsert:true}
+      const updateDoc = {
+        $set:{
+          wishlist:true
+        }
+      }
+      const result = await productsCollection.updateOne(filter,updateDoc,options)
+      res.send(result)
+     })
+
+     app.get("/sellProducts/:email",async(req,res)=>{
+      const email = req.params.email;
+      const query = { sellerEmail :email};
+      // console.log(query)
+      const result = await productsCollection.find(query).toArray();
+      res.send(result)
+
+
+     });
+
+     app.get("/allProducts/wishlists", async (req, res) => {
+       const filter = { wishlist: true };
+       const result = await productsCollection.find(filter).toArray()
+       res.send(result)
+      
+      
+      })
 
      app.get("/allProducts/advertise", async (req, res) => {
        const filter = { advertised: true };
@@ -93,6 +128,8 @@ async function run(){
        const count = result.length;
        res.send({ count, result });
      });
+
+
 
     //  app.post("/users", async (req, res) => {
     //    const user = req.body;
