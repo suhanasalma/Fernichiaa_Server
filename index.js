@@ -1,4 +1,5 @@
 require("dotenv").config();
+const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const app = express();
@@ -17,6 +18,24 @@ const client = new MongoClient(uri, {
 });
 
 
+
+function verifyJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send("unauthorize access");
+  }
+  const token = authHeader.split(" ")[1];
+  // console.log(token)
+  jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+    if (err) {
+      return res.status(403).send("forbidden access");
+    }
+    req.decoded = decoded;
+    next();
+  });
+}
+
+
 async function run(){
    try{
      const categoryCollection = client
@@ -31,9 +50,25 @@ async function run(){
 
      const ordersCollection = client.db("FurnitureShop").collection("Orders");
 
-     const wishingCollection = client.db("FurnitureShop").collection("Whislist");
+     const wishingCollection = client
+       .db("FurnitureShop")
+       .collection("Whislist");
 
+       //jwson token
 
+       app.get('/jwt',async(req,res)=>{
+        const email = req.query.email
+        const query = {email:email}
+        const user = await usersCollection.findOne(query)
+        
+        if (user) {
+          const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
+            expiresIn: "1h",
+          });
+          return res.send({ accessToken: token });
+        }
+        res.status(401).send({ accessToken: "" });
+       })
 
      app.get("/categories", async (req, res) => {
        const query = {};
@@ -55,19 +90,6 @@ async function run(){
        res.send(result);
      });
 
-     //time added
-
-     //  app.get('/allProducts',async(req,res)=>{
-     //     const filter ={}
-     //     const option = {upsert:true}
-     //     const updateDoc = {
-     //       $set: {
-     //         postedTime: new Date(),
-     //       },
-     //     };
-     //     const result = await productsCollection.updateMany(filter,updateDoc,option)
-     //     res.send(result)
-     //  })
 
      app.post("/allProducts", async (req, res) => {
        const product = req.body;
@@ -78,10 +100,6 @@ async function run(){
 
      app.get("/allProducts", async (req, res) => {
        const filter = {};
-
-       //  if (req.query.email) {
-       //   filter = { sellerEmail: email };
-       //  }
        const page = parseInt(req.query.page);
        const limit = parseInt(req.query.limit);
        const result = await productsCollection
@@ -99,95 +117,50 @@ async function run(){
        res.send(result);
      });
 
-     app.post('/wishlists',async(req,res)=>{
-      const list = req.body;
-      const result = await wishingCollection.insertOne(list)
-      res.send(result)
-     
-     })
-
-     app.get('/wishlists',async(req,res)=>{
-      const email = req.query.email;
-      const filter = {wishingEmail:email}
-      const result = await wishingCollection.find(filter).toArray()
-      res.send(result)
-     })
-
-     app.delete('/wishlists/:id',async(req,res)=>{
-      const id = req.params.id
-      const filter = { _id: ObjectId(id) };
-      const result = await wishingCollection.deleteOne(filter);
-      res.send(result);
-
-
-     })
-
-     app.put('/removeWishlist/:id',async(req,res)=>{
-      const id = req.params.id;
-      console.log(id)
-      const filter = { _id: ObjectId(id) };
-      console.log(filter)
-      const options = { upsert: true };
-      const updateDoc = {
-        $set: {
-          wishlist: false,
-        },
-      };
-      const result = await productsCollection.updateOne(
-        filter,
-        updateDoc,
-        options
-      );
-      res.send(result);
-      
-     })
-
-     app.post("/products/edit/:id",async(req,res)=>{
-      const id = req.params.id
-      const filter = {_id:ObjectId(id)}
-      const info = req.body
-      const updateInfo = {
-        $set:{
-          title:info.title,
-          newPrice:info.newPrice,
-          details:info.details
-
-        }
-      }
-      const updateResult = productsCollection.updateOne(filter,updateInfo)
-      
-
-      console.log(updateInfo);
-
-     })
-
-
-      app.put("/products/:id", async (req, res) => {
-        const id = req.params.id;
-        const filter = { _id: ObjectId(id) };
-        const options = { upsert: true };
-        const updateDoc = {
-          $set: {
-            wishlist: false,
-            booked:true,
-          },
-        };
-        const result = await productsCollection.updateOne(
-          filter,
-          updateDoc,
-          options
-        );
-        res.send(result);
-      });
-
-     app.put("/allProducts/:id", async (req, res) => {
+     app.delete("/products/:id", async (req, res) => {
        const id = req.params.id;
        const filter = { _id: ObjectId(id) };
+       const result = await productsCollection.deleteOne(filter);
+       res.send(result);
+     });
+
+
+
+     app.post("/wishlists", async (req, res) => {
+       const list = req.body;
+       const result = await wishingCollection.insertOne(list);
+       res.send(result);
+     });
+
+     app.get("/wishlists", verifyJWT, async (req, res) => {
+       const email = req.query.email;
+       const decodedEmail = req.decoded.email
+       console.log(decodedEmail,email)
+       if(email !== decodedEmail){
+        return res.send({message:"forbidden access"})
+       }
+       const filter = { wishingEmail: email };
+       console.log(req.headers.authorization);
+       const result = await wishingCollection.find(filter).toArray();
+       res.send(result);
+     });
+
+     app.delete("/wishlists/:id", async (req, res) => {
+       const id = req.params.id;
+       const filter = { _id: ObjectId(id) };
+       const result = await wishingCollection.deleteOne(filter);
+       res.send(result);
+     });
+
+     app.put("/removeWishlist/:id", async (req, res) => {
+       const id = req.params.id;
+       console.log(id);
+       const filter = { _id: ObjectId(id) };
+       console.log(filter);
        const options = { upsert: true };
        const updateDoc = {
          $set: {
-           wishlist: true,
-
+           wishlist: false,
          },
        };
        const result = await productsCollection.updateOne(
@@ -198,50 +171,76 @@ async function run(){
        res.send(result);
      });
 
+     app.post("/products/edit/:id", async (req, res) => {
+       const id = req.params.id;
+       const filter = { _id: ObjectId(id) };
+       const info = req.body;
+       const updateInfo = {
+         $set: {
+           title: info.title,
+           newPrice: info.newPrice,
+           details: info.details,
+         },
+       };
+       const updateResult = productsCollection.updateOne(filter, updateInfo);
+       res.send(updateResult);
 
+       console.log(updateInfo);
+     });
 
-    //  app.put("/allProducts", async (req, res) => {
-      
-    //    const id = req.query.id;
-    //    const email = req.query.email
-    //    const filter = { _id: ObjectId(id) };
-    //    const options = { upsert: true };
-    //    const updateDoc = {
-    //      $set: {
-    //        wishlist: true,
-    //        wishingEmail:email
+     app.put("/products/:id", async (req, res) => {
+       const id = req.params.id;
+       const filter = { _id: ObjectId(id) };
+       const options = { upsert: true };
+       const updateDoc = {
+         $set: {
+           wishlist: false,
+           booked: true,
+         },
+       };
+       const result = await productsCollection.updateOne(
+         filter,
+         updateDoc,
+         options
+       );
+       res.send(result);
+     });
 
-    //      },
-    //    };
-    //    const result = await productsCollection.updateOne(
-    //      filter,
-    //      updateDoc,
-    //      options
-    //    );
-    //    res.send(result);
-    //  });
+     app.put("/allProducts/:id", async (req, res) => {
+       const id = req.params.id;
+       const filter = { _id: ObjectId(id) };
+       const options = { upsert: true };
+       const updateDoc = {
+         $set: {
+           wishlist: true,
+         },
+       };
+       const result = await productsCollection.updateOne(
+         filter,
+         updateDoc,
+         options
+       );
+       res.send(result);
+     });
 
-
-
-
+  
 
      app.get("/sellProducts/:email", async (req, res) => {
        const email = req.params.email;
        const query = { sellerEmail: email };
-       // console.log(query)
+
        const result = await productsCollection.find(query).toArray();
        res.send(result);
      });
 
-     //start from morning
+
 
      app.get("/allProducts/wishlists", async (req, res) => {
-      const email = req.query.email
-       const filter = 
-       { 
-        wishlist: true ,
-        // customerEmail:email
-      };
+       const email = req.query.email;
+       const filter = {
+         wishlist: true,
+
+       };
        const result = await productsCollection.find(filter).toArray();
        res.send(result);
      });
@@ -265,12 +264,7 @@ async function run(){
        res.send(result);
      });
 
-     //  app.post("/users", async (req, res) => {
-     //    const user = req.body;
-     //    console.log(user);
-     //    const result = await usersCollection.insertOne(user);
-     //    res.send(result);
-     //  });
+
 
      app.put("/users/:email", async (req, res) => {
        const email = req.params.email;
@@ -289,13 +283,13 @@ async function run(){
      });
 
      app.get("/users/:email", async (req, res) => {
-      const email = req.params.email
-      const filter = {email:email}
-      // console.log(filter);
-      const result = await usersCollection.findOne(filter)
-      // console.log(result)
-      res.send(result)
-     })
+       const email = req.params.email;
+       const filter = { email: email };
+       // console.log(filter);
+       const result = await usersCollection.findOne(filter);
+       // console.log(result)
+       res.send(result);
+     });
 
      app.get("/users", async (req, res) => {
        //  const role = req.query.role
@@ -311,44 +305,49 @@ async function run(){
        res.send(result);
      });
 
-     app.delete('/users/:id',async(req,res)=>{
-      const id = req.params.id
-      const filter = {_id:ObjectId(id)}
-      const result  = await usersCollection.deleteOne(filter)
-      res.send(result)
-     })
+     app.delete("/users/:id", async (req, res) => {
+       const id = req.params.id;
+       const filter = { _id: ObjectId(id) };
+       const result = await usersCollection.deleteOne(filter);
+       res.send(result);
+     });
+
+     app.put("/verifyuser/:email", async (req, res) => {
+       const email = req.params.email;
+       const filter = { email: email };
+       console.log(filter);
+       const options = { upsert: true };
+       const updateDoc = {
+         $set: {
+           isVarified: true,
+         },
+       };
+       const result = await usersCollection.updateOne(
+         filter,
+         updateDoc,
+         options
+       );
+       res.send(result);
+     });
+
+     app.put("/products/boost/:id", async (req, res) => {
+       const id = req.params.id;
+       const filter = { _id: ObjectId(id) };
+       const options = { upsert: true };
+       const updateDoc = {
+         $set: {
+           advertised: true,
+         },
+       };
+       const result = await productsCollection.updateOne(
+         filter,
+         updateDoc,
+         options
+       );
+       res.send(result);
+     });
 
 
-     app.put('/verifyuser/:email',async(req,res)=>{
-      const email = req.params.email
-      const filter = {email:email}
-      console.log(filter)
-      const options = {upsert:true}
-      const updateDoc = {
-        $set: {
-          isVarified:true
-        },
-      };
-      const result  = await usersCollection.updateOne(filter,updateDoc,options)
-      res.send(result)
-     })
-
-
-    //  app.put("/users/:email", async (req, res) => {
-    //    const email = req.params.email;
-    //    const filter = { email: email };
-    //    const user = req.body;
-    //    const option = { upsert: true };
-    //    const updateDoc = {
-    //      $set: user,
-    //    };
-    //    const result = await usersCollection.updateOne(
-    //      filter,
-    //      updateDoc,
-    //      option
-    //    );
-    //    res.send(result);
-    //  });
    }
    finally{
 
