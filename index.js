@@ -142,6 +142,25 @@ async function run(){
       
      })
 
+     app.post("/products/edit/:id",async(req,res)=>{
+      const id = req.params.id
+      const filter = {_id:ObjectId(id)}
+      const info = req.body
+      const updateInfo = {
+        $set:{
+          title:info.title,
+          newPrice:info.newPrice,
+          details:info.details
+
+        }
+      }
+      const updateResult = productsCollection.updateOne(filter,updateInfo)
+      
+
+      console.log(updateInfo);
+
+     })
+
 
       app.put("/products/:id", async (req, res) => {
         const id = req.params.id;
