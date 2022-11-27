@@ -54,21 +54,21 @@ async function run(){
        .db("FurnitureShop")
        .collection("Whislist");
 
-       //jwson token
+     //jwson token
 
-       app.get('/jwt',async(req,res)=>{
-        const email = req.query.email
-        const query = {email:email}
-        const user = await usersCollection.findOne(query)
-        
-        if (user) {
-          const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
-            expiresIn: "1h",
-          });
-          return res.send({ accessToken: token });
-        }
-        res.status(401).send({ accessToken: "" });
-       })
+     app.get("/jwt", async (req, res) => {
+       const email = req.query.email;
+       const query = { email: email };
+       const user = await usersCollection.findOne(query);
+
+       if (user) {
+         const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
+           expiresIn: "10h",
+         });
+         return res.send({ accessToken: token });
+       }
+       res.status(401).send({ accessToken: "" });
+     });
 
      app.get("/categories", async (req, res) => {
        const query = {};
@@ -76,12 +76,39 @@ async function run(){
        res.send(result);
      });
 
-     app.get("/categories/:id", async (req, res) => {
+     //getting products according to category
+
+     app.get("/categories/products/:id", async (req, res) => {
        const id = parseInt(req.params.id);
-       const query = { categoryId: id };
+       const query = {
+         categoryId: id,
+         paid: false,
+       };
        const result = await productsCollection.find(query).toArray();
        res.send(result);
      });
+
+     //getting all product according to true false value
+
+     app.get("/allProducts", async (req, res) => {
+       const filter = {
+         paid: false,
+       };
+       const page = parseInt(req.query.page);
+       const limit = parseInt(req.query.limit);
+       const trueCount = await productsCollection.find(filter).toArray();
+
+       const result = await productsCollection
+         .find(filter)
+         .skip(page * limit)
+         .limit(limit)
+         .toArray();
+       const count = trueCount.length;
+       // await productsCollection.estimatedDocumentCount();
+       res.send({ count, result });
+     });
+
+     //getting products details
 
      app.get("/productDetails/:id", async (req, res) => {
        const id = req.params.id;
@@ -90,32 +117,23 @@ async function run(){
        res.send(result);
      });
 
+     //adding seller single products
 
      app.post("/allProducts", async (req, res) => {
        const product = req.body;
        const result = await productsCollection.insertOne(product);
        res.send(result);
-       // console.log(product)
      });
 
-     app.get("/allProducts", async (req, res) => {
-       const filter = {};
-       const page = parseInt(req.query.page);
-       const limit = parseInt(req.query.limit);
-       const result = await productsCollection
-         .find(filter)
-         .skip(page * limit)
-         .limit(limit)
-         .toArray();
-       const count = await productsCollection.estimatedDocumentCount();
-       res.send({ count, result });
-     });
+     //getting all products
 
      app.get("/products", async (req, res) => {
        const filter = {};
        const result = await productsCollection.find(filter).toArray();
        res.send(result);
      });
+
+     //delete my adding products
 
      app.delete("/products/:id", async (req, res) => {
        const id = req.params.id;
@@ -124,33 +142,88 @@ async function run(){
        res.send(result);
      });
 
+     //add to wishlist
 
-
-     app.post("/wishlists", async (req, res) => {
+     app.post("/addwishlists", async (req, res) => {
        const list = req.body;
        const result = await wishingCollection.insertOne(list);
+
+       const wishId = list.productCode;
+       const filterProduct = { _id: ObjectId(wishId) };
+       //  console.log(filterProduct);
+       const options = { upsert: true };
+       const updateDoc = {
+         $set: {
+           wishlist: true,
+         },
+       };
+       const update = await productsCollection.updateOne(
+         filterProduct,
+         updateDoc,
+         options
+       );
        res.send(result);
      });
 
+     //getting wishlist
+
      app.get("/wishlists", verifyJWT, async (req, res) => {
        const email = req.query.email;
-       const decodedEmail = req.decoded.email
-       console.log(decodedEmail,email)
-       if(email !== decodedEmail){
-        return res.send({message:"forbidden access"})
+       const decodedEmail = req.decoded.email;
+       //  console.log(decodedEmail, email);
+       if (email !== decodedEmail) {
+         return res.send({ message: "forbidden access" });
        }
        const filter = { wishingEmail: email };
-       console.log(req.headers.authorization);
+       //  console.log(req.headers.authorization);
        const result = await wishingCollection.find(filter).toArray();
        res.send(result);
      });
 
-     app.delete("/wishlists/:id", async (req, res) => {
-       const id = req.params.id;
+
+
+
+     app.post("/transferOrder", async (req, res) => {
+       // const wishId =
+
+       //saving in order collextion
+       const orders = req.body;
+       const result = await ordersCollection.insertOne(orders);
+
+       // //editing order in all products collection
+       const id = orders.productCode;
        const filter = { _id: ObjectId(id) };
-       const result = await wishingCollection.deleteOne(filter);
+       console.log(filter);
+       const options = { upsert: true };
+       const updateDoc = {
+         $set: {
+           wishlist: false,
+           booked: true,
+         },
+       };
+       const Editresult = await productsCollection.updateOne(
+         filter,
+         updateDoc,
+         options
+       );
+
+
+
+
+
+
+       // //deleting from wishlist
+       const wishIdFilter = orders.wishingId;
+       const wishFilter = { _id: ObjectId(wishIdFilter) };
+       console.log(wishFilter);
+       const deleteWish = await wishingCollection.deleteOne(wishFilter);
+
        res.send(result);
      });
+
+
+
+     //remove my wishlist
 
      app.put("/removeWishlist/:id", async (req, res) => {
        const id = req.params.id;
@@ -168,8 +241,15 @@ async function run(){
          updateDoc,
          options
        );
+       const productFilter = { productCode: id };
+       const wishResult = await wishingCollection.deleteOne(productFilter);
        res.send(result);
      });
+     
+
+
+
+
 
      app.post("/products/edit/:id", async (req, res) => {
        const id = req.params.id;
@@ -185,8 +265,10 @@ async function run(){
        const updateResult = productsCollection.updateOne(filter, updateInfo);
        res.send(updateResult);
 
-       console.log(updateInfo);
+       //  console.log(updateInfo);
      });
+
+
 
      app.put("/products/:id", async (req, res) => {
        const id = req.params.id;
@@ -206,25 +288,6 @@ async function run(){
        res.send(result);
      });
 
-     app.put("/allProducts/:id", async (req, res) => {
-       const id = req.params.id;
-       const filter = { _id: ObjectId(id) };
-       const options = { upsert: true };
-       const updateDoc = {
-         $set: {
-           wishlist: true,
-         },
-       };
-       const result = await productsCollection.updateOne(
-         filter,
-         updateDoc,
-         options
-       );
-       res.send(result);
-     });
-
-  
-
      app.get("/sellProducts/:email", async (req, res) => {
        const email = req.params.email;
        const query = { sellerEmail: email };
@@ -233,17 +296,16 @@ async function run(){
        res.send(result);
      });
 
-
-
      app.get("/allProducts/wishlists", async (req, res) => {
        const email = req.query.email;
        const filter = {
          wishlist: true,
-
        };
        const result = await productsCollection.find(filter).toArray();
        res.send(result);
      });
+
+     //geting advertise product
 
      app.get("/allProducts/advertise", async (req, res) => {
        const filter = { advertised: true };
@@ -258,77 +320,81 @@ async function run(){
        res.send({ count, result });
      });
 
+     //all orders list and deleting wishlist and updeting all products
+
      app.post("/orders", async (req, res) => {
        const orders = req.body;
        const result = await ordersCollection.insertOne(orders);
-       res.send(result);
-     });
 
-
-
-     app.put("/users/:email", async (req, res) => {
-       const email = req.params.email;
-       const filter = { email: email };
-       const user = req.body;
-       const option = { upsert: true };
-       const updateDoc = {
-         $set: user,
+       //getting all products list to false wishlist
+       const wishId = orders.productCode;
+       const productFilter = { _id: ObjectId(wishId) };
+       const options = { upsert: true };
+       const updateFalse = {
+         $set: {
+           wishlist: false,
+           booked: true,
+         },
        };
-       const result = await usersCollection.updateOne(
-         filter,
-         updateDoc,
-         option
+       const product = await productsCollection.updateOne(
+         productFilter,
+         updateFalse,
+         options
        );
+
+       //deleting from wishlist collection
+
+       const bookId = orders.productCode;
+       const wishFilter = { productCode: bookId };
+       const wish = await wishingCollection.deleteOne(wishFilter);
+       //final outcome
        res.send(result);
      });
 
-     app.get("/users/:email", async (req, res) => {
-       const email = req.params.email;
-       const filter = { email: email };
-       // console.log(filter);
-       const result = await usersCollection.findOne(filter);
-       // console.log(result)
+     //getting order
+
+     app.get("/orders/myorder", async (req, res) => {
+       const email = req.query.email;
+       const filter = { buyerEmail: email };
+       //  console.log(filter);
+       const result = await ordersCollection.find(filter).toArray();
        res.send(result);
      });
 
-     app.get("/users", async (req, res) => {
-       //  const role = req.query.role
-       let query = {};
-       if (req.query.role) {
-         query = { role: req.query.role };
-       } else {
-         query = { email: req.query.email };
-       }
-       //  const query = {role:role};
-       const result = await usersCollection.find(query).toArray();
-       // console.log(query)
+     //getting buyer
+     app.get("/orders/mybuyers", async (req, res) => {
+       const email = req.query.email;
+       const filter = { sellerEmail: email };
+       //  console.log(filter);
+       const result = await ordersCollection.find(filter).toArray();
        res.send(result);
      });
 
-     app.delete("/users/:id", async (req, res) => {
+     //delinting from order
+
+     app.delete("/orders/myorder/delete/:id", async (req, res) => {
        const id = req.params.id;
        const filter = { _id: ObjectId(id) };
-       const result = await usersCollection.deleteOne(filter);
-       res.send(result);
-     });
-
-     app.put("/verifyuser/:email", async (req, res) => {
-       const email = req.params.email;
-       const filter = { email: email };
-       console.log(filter);
+       const resultCode = await ordersCollection.findOne(filter);
+       const productFilter = { _id: ObjectId(resultCode.productCode) };
+       console.log(productFilter);
        const options = { upsert: true };
        const updateDoc = {
          $set: {
-           isVarified: true,
+           booked: false,
          },
        };
-       const result = await usersCollection.updateOne(
-         filter,
+       const updateInfo = await productsCollection.updateOne(
+         productFilter,
          updateDoc,
          options
        );
+       const result = await ordersCollection.deleteOne(filter);
+
        res.send(result);
      });
+
+     //advertising products
 
      app.put("/products/boost/:id", async (req, res) => {
        const id = req.params.id;
@@ -347,7 +413,79 @@ async function run(){
        res.send(result);
      });
 
+     //creating user
 
+     app.put("/users/:email", async (req, res) => {
+       const email = req.params.email;
+       const filter = { email: email };
+       const user = req.body;
+       const option = { upsert: true };
+       const updateDoc = {
+         $set: user,
+       };
+       const result = await usersCollection.updateOne(
+         filter,
+         updateDoc,
+         option
+       );
+       res.send(result);
+     });
+
+     //getting admin
+
+     app.get("/users/:email", async (req, res) => {
+       const email = req.params.email;
+       const filter = { email: email };
+       // console.log(filter);
+       const result = await usersCollection.findOne(filter);
+       // console.log(result)
+       res.send(result);
+     });
+
+     //getting user with role
+
+     app.get("/users", async (req, res) => {
+       //  const role = req.query.role
+       let query = {};
+       if (req.query.role) {
+         query = { role: req.query.role };
+       } else {
+         query = { email: req.query.email };
+       }
+       //  const query = {role:role};
+       const result = await usersCollection.find(query).toArray();
+       // console.log(query)
+       res.send(result);
+     });
+
+     //deleting user
+
+     app.delete("/users/:id", async (req, res) => {
+       const id = req.params.id;
+       const filter = { _id: ObjectId(id) };
+       const result = await usersCollection.deleteOne(filter);
+       res.send(result);
+     });
+
+     //verifying seller
+
+     app.put("/verifyuser/:email", async (req, res) => {
+       const email = req.params.email;
+       const filter = { email: email };
+       //  console.log(filter);
+       const options = { upsert: true };
+       const updateDoc = {
+         $set: {
+           isVarified: true,
+         },
+       };
+       const result = await usersCollection.updateOne(
+         filter,
+         updateDoc,
+         options
+       );
+       res.send(result);
+     });
    }
    finally{
 
