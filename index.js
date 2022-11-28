@@ -6,6 +6,7 @@ const app = express();
 const cors = require("cors");
 const { query } = require("express");
 const port = process.env.PORT || 5000;
+const stripe = require("stripe")(process.env.STRIPE_SK);
 
 app.use(cors());
 app.use(express.json());
@@ -17,6 +18,7 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+// console.log(uri)
 
 
 function verifyJWT(req, res, next) {
@@ -50,9 +52,10 @@ async function run(){
 
      const ordersCollection = client.db("FurnitureShop").collection("Orders");
 
-     const wishingCollection = client
-       .db("FurnitureShop")
-       .collection("Whislist");
+     const wishingCollection = client.db("FurnitureShop").collection("Whislist");
+
+
+     const paymentsCollection = client.db("FurnitureShop").collection("payments");
 
      //jwson token
 
@@ -133,6 +136,12 @@ async function run(){
        res.send(result);
      });
 
+     //getting products according orderId
+
+     app.get('/products',async(req,res)=>{
+
+     })
+
      //delete my adding products
 
      app.delete("/products/:id", async (req, res) => {
@@ -180,8 +189,7 @@ async function run(){
        res.send(result);
      });
 
-
-
+     //moving wish to book now
 
      app.post("/transferOrder", async (req, res) => {
        // const wishId =
@@ -193,7 +201,7 @@ async function run(){
        // //editing order in all products collection
        const id = orders.productCode;
        const filter = { _id: ObjectId(id) };
-       console.log(filter);
+      //  console.log(filter);
        const options = { upsert: true };
        const updateDoc = {
          $set: {
@@ -207,11 +215,6 @@ async function run(){
          options
        );
 
-
-
-
-
-
        // //deleting from wishlist
        const wishIdFilter = orders.wishingId;
        const wishFilter = { _id: ObjectId(wishIdFilter) };
@@ -221,15 +224,13 @@ async function run(){
        res.send(result);
      });
 
-
-
      //remove my wishlist
 
      app.put("/removeWishlist/:id", async (req, res) => {
        const id = req.params.id;
-       console.log(id);
+      //  console.log(id);
        const filter = { _id: ObjectId(id) };
-       console.log(filter);
+      //  console.log(filter);
        const options = { upsert: true };
        const updateDoc = {
          $set: {
@@ -245,11 +246,10 @@ async function run(){
        const wishResult = await wishingCollection.deleteOne(productFilter);
        res.send(result);
      });
-     
 
 
 
-
+     //for seller editing modal
 
      app.post("/products/edit/:id", async (req, res) => {
        const id = req.params.id;
@@ -268,7 +268,7 @@ async function run(){
        //  console.log(updateInfo);
      });
 
-
+     //getting [products]
 
      app.put("/products/:id", async (req, res) => {
        const id = req.params.id;
@@ -308,7 +308,8 @@ async function run(){
      //geting advertise product
 
      app.get("/allProducts/advertise", async (req, res) => {
-       const filter = { advertised: true };
+       const filter = { advertised: true,
+       paid: false, };
        const page = parseInt(req.query.page);
        const limit = parseInt(req.query.limit);
        const result = await productsCollection
@@ -361,6 +362,16 @@ async function run(){
        res.send(result);
      });
 
+     //getting specific order
+
+     app.get('/orders/:id',async(req,res)=>{
+      const id = req.params.id
+      // console.log(id)
+      const query = {_id:ObjectId(id)}
+      const result = await ordersCollection.findOne(query)
+      res.send(result)
+     })
+
      //getting buyer
      app.get("/orders/mybuyers", async (req, res) => {
        const email = req.query.email;
@@ -377,7 +388,7 @@ async function run(){
        const filter = { _id: ObjectId(id) };
        const resultCode = await ordersCollection.findOne(filter);
        const productFilter = { _id: ObjectId(resultCode.productCode) };
-       console.log(productFilter);
+      //  console.log(productFilter);
        const options = { upsert: true };
        const updateDoc = {
          $set: {
@@ -419,19 +430,21 @@ async function run(){
        const email = req.params.email;
        const filter = { email: email };
        const user = req.body;
-       const option = { upsert: true };
+       const options = { upsert: true };
        const updateDoc = {
          $set: user,
        };
        const result = await usersCollection.updateOne(
          filter,
          updateDoc,
-         option
+         options
        );
+       console.log("saved")
        res.send(result);
+
      });
 
-     //getting admin
+     //getting user
 
      app.get("/users/:email", async (req, res) => {
        const email = req.params.email;
@@ -440,6 +453,15 @@ async function run(){
        const result = await usersCollection.findOne(filter);
        // console.log(result)
        res.send(result);
+     });
+
+     //get admin
+
+     app.get("/users/admin/:email", async (req, res) => {
+       const email = req.params.email;
+       const query = { email };
+       const user = await usersCollection.findOne(query);
+       res.send({ isAdmin: user?.role === "admin" });
      });
 
      //getting user with role
@@ -486,6 +508,61 @@ async function run(){
        );
        res.send(result);
      });
+
+     //payment
+     app.post('/create-payment-intent',async(req,res)=>{
+      const confirmOrder = req.body
+      // console.log(confirmOrder)
+      const price = confirmOrder.price*100
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: price,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+     });
+
+     //collecting payment collection
+
+     app.post('/payments',async(req,res)=>{
+      const payment = req.body
+     
+      const result = await paymentsCollection.insertOne(payment)
+      const productCode = payment.productCode;
+      const productFilter = {_id:ObjectId(productCode)}
+
+
+      const orderCode = payment.productCode;
+      const orderFilter = { productCode: productCode };
+
+      //  console.log(productCode, orderCode);
+      const options = {upsert:true}
+      const updateDoc = {
+        $set:{
+          paid:true
+        }
+      }
+
+      const allProductsUpdate = await productsCollection.updateOne(
+        productFilter,
+        updateDoc,
+        options
+      );
+      // console.log(allProductsUpdate)
+      const allOrderUpdate = await ordersCollection.updateMany(
+        orderFilter,
+        updateDoc,
+        options
+      );
+      res.send(result)
+
+     })
+
+
+     
+
    }
    finally{
 
