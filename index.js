@@ -493,6 +493,7 @@ async function run(){
 
      app.put("/verifyuser/:email", async (req, res) => {
        const email = req.params.email;
+       const productFilter = { sellerEmail: email};
        const filter = { email: email };
        //  console.log(filter);
        const options = { upsert: true };
@@ -501,6 +502,11 @@ async function run(){
            isVarified: true,
          },
        };
+       const product = await productsCollection.updateMany(
+         productFilter,
+         updateDoc,
+         options
+       );
        const result = await usersCollection.updateOne(
          filter,
          updateDoc,
